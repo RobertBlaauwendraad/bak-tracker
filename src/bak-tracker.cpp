@@ -44,10 +44,37 @@ const int fullBeerThreshold = 300;      // Above this amount we consider a full 
 const int emptyBeerThreshold = 200;      // Beneath this amount and above the emptyScaleThreshold we consider an empty beer is on the scale
 const int emptyScaleThreshold = 100;     // Beneath this amount we consider the scale empty
 
+void setCrossOrigin(){
+  server.sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server.sendHeader(F("Access-Control-Max-Age"), F("86400"));
+  server.sendHeader(F("Access-Control-Allow-Methods"), F("PUT,POST,GET,OPTIONS"));
+  server.sendHeader(F("Access-Control-Allow-Headers"), F("*"));
+};
 
 // Serving Hello World
 void getHelloWord() {
+  setCrossOrigin();
   server.send(200, "text/json", "{\"name\": \"Hello world\"}");
+}
+
+void newBak() {
+  setCrossOrigin();
+  if(!server.hasArg("plain")) {
+    server.send(200, "text/plain", "Body not received");
+    return;
+  }
+
+  String message = "Body received:\n";
+  message += server.arg("plain");
+  message += "\n";
+
+  server.send(200, "text/plain", message);
+  Serial.println(message);
+}
+
+void newBakOptions() {
+  setCrossOrigin();
+  server.send(200);
 }
 
 // Define routing
@@ -57,6 +84,8 @@ void restServerRouting() {
                   F("Welcome to the REST Web Server"));
   });
   server.on(F("/helloWorld"), HTTP_GET, getHelloWord);
+  server.on(F("/bak"), HTTP_POST, newBak);
+  server.on(F("/bak"), HTTP_OPTIONS, newBakOptions);
 }
 
 void setup() {
