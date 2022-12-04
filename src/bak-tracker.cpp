@@ -22,6 +22,9 @@ HX711 scale;
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 
+// JSON Library
+#include <ArduinoJson.h>
+
 // Initialize API
 #define HTTP_REST_PORT 80
 ESP8266WebServer server(HTTP_REST_PORT);
@@ -44,7 +47,10 @@ const int fullBeerThreshold = 300;      // Above this amount we consider a full 
 const int emptyBeerThreshold = 200;      // Beneath this amount and above the emptyScaleThreshold we consider an empty beer is on the scale
 const int emptyScaleThreshold = 100;     // Beneath this amount we consider the scale empty
 
-void setCrossOrigin(){
+String enteredName;
+bool onlineGame;
+
+void setCrossOrigin() {
   server.sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server.sendHeader(F("Access-Control-Max-Age"), F("86400"));
   server.sendHeader(F("Access-Control-Allow-Methods"), F("PUT,POST,GET,OPTIONS"));
@@ -59,17 +65,18 @@ void getHelloWord() {
 
 void newBak() {
   setCrossOrigin();
-  if(!server.hasArg("plain")) {
+  if (!server.hasArg("plain")) {
     server.send(200, "text/plain", "Body not received");
     return;
   }
 
-  String message = "Body received:\n";
-  message += server.arg("plain");
-  message += "\n";
+  enteredName = server.arg("plain");
 
-  server.send(200, "text/plain", message);
-  Serial.println(message);
+
+  onlineGame = true;
+
+  server.send(200, "text/plain", enteredName);
+  Serial.println(enteredName);
 }
 
 void newBakOptions() {
@@ -138,6 +145,11 @@ bool drinkingLoop() {
 void updateBeerStatus() {
   if (beerStatus == Waiting) {           // Wait until beer is on the scale
     display.drawString(104, 16, "Place your beer!");
+
+    if (onlineGame) {
+      display.drawString(104, 10, enteredName);
+    }
+
     if (scale.get_units() > fullBeerThreshold) {
       beerStatus = Placed;
     }
