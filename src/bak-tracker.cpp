@@ -22,9 +22,6 @@ HX711 scale;
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 
-// JSON Library
-#include <ArduinoJson.h>
-
 // Initialize API
 #define HTTP_REST_PORT 80
 ESP8266WebServer server(HTTP_REST_PORT);
@@ -72,10 +69,9 @@ void newBak() {
 
   enteredName = server.arg("plain");
 
-
   onlineGame = true;
 
-  server.send(200, "text/plain", enteredName);
+  server.send(200, "text/json", "{success: true}");
   Serial.println(enteredName);
 }
 
