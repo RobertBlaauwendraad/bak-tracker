@@ -26,8 +26,8 @@ HX711 scale;
 #define HTTP_REST_PORT 80
 ESP8266WebServer server(HTTP_REST_PORT);
 
-const int weightSensorDT = 12;
-const int weightSensorSCK = 16;
+const int weightSensorDT = 0;
+const int weightSensorSCK = 2;
 
 enum Status {
     Waiting, Placed, Drinking, Finished, Failed
@@ -80,6 +80,12 @@ void newBakOptions() {
   server.send(200);
 }
 
+void resetBakTracker() {
+  setCrossOrigin();
+  server.send(200, "text/json", "{success: true}");
+  ESP.reset();
+}
+
 // Define routing
 void restServerRouting() {
   server.on("/", HTTP_GET, []() {
@@ -89,6 +95,7 @@ void restServerRouting() {
   server.on(F("/helloWorld"), HTTP_GET, getHelloWord);
   server.on(F("/bak"), HTTP_POST, newBak);
   server.on(F("/bak"), HTTP_OPTIONS, newBakOptions);
+  server.on(F("/reset"), HTTP_GET, resetBakTracker);
 }
 
 void setup() {
@@ -133,7 +140,8 @@ bool drinkingLoop() {
   }
   display.clear();
   drinkingTime = millis() - startDrinkingTime;
-  display.drawString(64, 22, String(drinkingTime));
+  float drinkingTimeSeconds = drinkingTime / 1000.f;
+  display.drawString(64, 22, String(drinkingTimeSeconds, 3));
   display.display();
   return true;
 }
