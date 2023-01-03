@@ -111,7 +111,7 @@ void setup() {
   scale.begin(weightSensorDT, weightSensorSCK);
 
   // Calibration factor gained by (measured_weight/actual_weight)
-  scale.set_scale(106.46);
+  scale.set_scale(63.8065116279);
   scale.tare();
 
   WiFiManager wifiManager;
