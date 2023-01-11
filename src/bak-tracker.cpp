@@ -50,6 +50,7 @@ const int emptyScaleThreshold = 100;     // Beneath this amount we consider the 
 
 String enteredName;
 bool onlineGame;
+bool requestSent;
 
 void setCrossOrigin() {
   server.sendHeader(F("Access-Control-Allow-Origin"), F("*"));
@@ -143,10 +144,9 @@ float millisToSeconds(unsigned long millis) {
 
 bool drinkingLoop() {
   float currentWeight = scale.get_units();
-  Serial.println(currentWeight);
   if (currentWeight > emptyScaleThreshold) {   // Something has been placed on the scale
     beerStatus = Finished;
-    finishDrinkingTime = millis();
+    onlineGame = false;
 //    if (currentWeight < emptyBeerThreshold) {  // Empty glass has been placed on the scale
 //      beerStatus = Finished;
 //    } else {                                  // Something heavier than empty glass has been placed on the scale
@@ -161,12 +161,41 @@ bool drinkingLoop() {
   return true;
 }
 
+void sendPOSTRequest() {
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClient client;
+    HTTPClient http;
+    String serverPath = "http://localhost:3000/api/v1/attempts";
+    http.begin(client, serverPath.c_str());
+    http.addHeader("Content-Type", "application/json");
+    String requestBody = "{\"attempt_taker\":" + enteredName + ", \"attempt_time\":\"" +
+                           millisToSeconds(drinkingTime) + "\"}";
+    Serial.println(requestBody);
+    int httpResponseCode = http.POST(requestBody);
+    if (httpResponseCode > 0) {
+      requestSent = true;
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode);
+      String payload = http.getString();
+      Serial.println(payload);
+    } else {
+      requestSent = false;
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+    // Free resources
+    http.end();
+  } else {
+    Serial.println("WiFi Disconnected");
+  }
+}
+
 void updateBeerStatus() {
   if (beerStatus == Waiting) {           // Wait until beer is on the scale
     display.drawString(104, 20, "Place your beer!");
 
     if (onlineGame) {
-      display.drawString(104, 10, enteredName);
+      display.drawString(90, 10, "Hi " + enteredName + ",");
     }
 
     if (scale.get_units() > fullBeerThreshold) {
@@ -183,10 +212,20 @@ void updateBeerStatus() {
   } else if (beerStatus == Finished) {    // Person has finished drinking the beer
     // Display final time
     display.drawString(80, 10, "Finished");
-    display.drawString(90, 20, "Your time: " + String(millisToSeconds(drinkingTime)));
+    display.drawString(90, 20, "Your time: " + String(millisToSeconds(drinkingTime), 3));
 
+    Serial.println(onlineGame);
+    Serial.println(requestSent);
+//    if(onlineGame && !requestSent) {
+      sendPOSTRequest();
+//    }
 
-    if(millis() - finishDrinkingTime >= restartGameTimer) {
+    // Wait until scale is empty and then wait a certain time to restart the game
+    if(scale.get_units() < emptyScaleThreshold && finishDrinkingTime == 0) {
+      finishDrinkingTime = millis();
+    } if(finishDrinkingTime > 0 && millis() - finishDrinkingTime >= restartGameTimer) {
+      finishDrinkingTime = 0;
+      requestSent = false;
       beerStatus = Waiting;
     }
   } else {
@@ -198,31 +237,9 @@ void loop() {
   server.handleClient();
   MDNS.update();
 
-//  if (WiFi.status() == WL_CONNECTED) {
-//    WiFiClient client;
-//    HTTPClient http;
-//    String serverPath = "http://192.168.1.22:3000/";
-//    http.begin(client, serverPath.c_str());
-//    int httpResponseCode = http.GET();
-//
-//    if (httpResponseCode > 0) {
-//      Serial.print("HTTP Response code: ");
-//      Serial.println(httpResponseCode);
-//      String payload = http.getString();
-//      Serial.println(payload);
-//    } else {
-//      Serial.print("Error code: ");
-//      Serial.println(httpResponseCode);
-//    }
-//    // Free resources
-//    http.end();
-//  } else {
-//    Serial.println("WiFi Disconnected");
-//  }
   display.clear();
   display.setFont(ArialMT_Plain_10);
   display.setTextAlignment(TEXT_ALIGN_RIGHT);
-  Serial.print(String(scale.get_units()));
   updateBeerStatus();
   display.display();
   delay(10);
