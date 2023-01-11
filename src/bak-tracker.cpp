@@ -147,11 +147,11 @@ bool drinkingLoop() {
   if (currentWeight > emptyScaleThreshold) {   // Something has been placed on the scale
     beerStatus = Finished;
     onlineGame = false;
-//    if (currentWeight < emptyBeerThreshold) {  // Empty glass has been placed on the scale
-//      beerStatus = Finished;
-//    } else {                                  // Something heavier than empty glass has been placed on the scale
-//      beerStatus = Failed;
-//    }
+    if (currentWeight < emptyBeerThreshold) {  // Empty glass has been placed on the scale
+      beerStatus = Finished;
+    } else {                                  // Something heavier than empty glass has been placed on the scale
+      beerStatus = Failed;
+    }
     return false;
   }
   display.clear();
@@ -214,11 +214,10 @@ void updateBeerStatus() {
     display.drawString(80, 10, "Finished");
     display.drawString(90, 20, "Your time: " + String(millisToSeconds(drinkingTime), 3));
 
-    Serial.println(onlineGame);
-    Serial.println(requestSent);
-//    if(onlineGame && !requestSent) {
+    if(onlineGame && !requestSent) {
+      requestSent = true;
       sendPOSTRequest();
-//    }
+    }
 
     // Wait until scale is empty and then wait a certain time to restart the game
     if(scale.get_units() < emptyScaleThreshold && finishDrinkingTime == 0) {
