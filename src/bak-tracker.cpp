@@ -38,6 +38,10 @@ Status beerStatus = Waiting;
 // Global drinking times
 unsigned long startDrinkingTime;
 unsigned long drinkingTime;
+unsigned long finishDrinkingTime;
+
+// Amount of milliseconds needed to pass to restart the game
+const int restartGameTimer = 5000;
 
 // Weight threshold variables
 const int fullBeerThreshold = 300;      // Above this amount we consider a full beer is on the scale
@@ -80,6 +84,12 @@ void newBakOptions() {
   server.send(200);
 }
 
+void restartBakTracker() {
+  setCrossOrigin();
+  beerStatus = Waiting;
+  server.send(200, "text/json", "{success: true}");
+}
+
 void resetBakTracker() {
   setCrossOrigin();
   server.send(200, "text/json", "{success: true}");
@@ -96,6 +106,7 @@ void restServerRouting() {
   server.on(F("/bak"), HTTP_POST, newBak);
   server.on(F("/bak"), HTTP_OPTIONS, newBakOptions);
   server.on(F("/reset"), HTTP_GET, resetBakTracker);
+  server.on(F("/restart"), HTTP_GET, restartBakTracker);
 }
 
 void setup() {
@@ -126,11 +137,16 @@ void setup() {
   MDNS.addService("http", "tcp", 80);
 }
 
+float millisToSeconds(unsigned long millis) {
+  return millis / 1000.f;
+}
+
 bool drinkingLoop() {
   float currentWeight = scale.get_units();
   Serial.println(currentWeight);
   if (currentWeight > emptyScaleThreshold) {   // Something has been placed on the scale
     beerStatus = Finished;
+    finishDrinkingTime = millis();
 //    if (currentWeight < emptyBeerThreshold) {  // Empty glass has been placed on the scale
 //      beerStatus = Finished;
 //    } else {                                  // Something heavier than empty glass has been placed on the scale
@@ -140,15 +156,14 @@ bool drinkingLoop() {
   }
   display.clear();
   drinkingTime = millis() - startDrinkingTime;
-  float drinkingTimeSeconds = drinkingTime / 1000.f;
-  display.drawString(64, 22, String(drinkingTimeSeconds, 3));
+  display.drawString(90, 20, String(millisToSeconds(drinkingTime), 3));
   display.display();
   return true;
 }
 
 void updateBeerStatus() {
   if (beerStatus == Waiting) {           // Wait until beer is on the scale
-    display.drawString(104, 16, "Place your beer!");
+    display.drawString(104, 20, "Place your beer!");
 
     if (onlineGame) {
       display.drawString(104, 10, enteredName);
@@ -158,7 +173,7 @@ void updateBeerStatus() {
       beerStatus = Placed;
     }
   } else if (beerStatus == Placed) {    // Beer is on the scale
-    display.drawString(90, 16, "Let's start drinking!");
+    display.drawString(110, 20, "Let's start drinking!");
     if (scale.get_units() < emptyScaleThreshold) {
       beerStatus = Drinking;
     }
@@ -167,8 +182,13 @@ void updateBeerStatus() {
     while (drinkingLoop()) {}
   } else if (beerStatus == Finished) {    // Person has finished drinking the beer
     // Display final time
-    display.drawString(90, 16, "Finished");
-    display.drawString(90, 30, String(drinkingTime));
+    display.drawString(80, 10, "Finished");
+    display.drawString(90, 20, "Your time: " + String(millisToSeconds(drinkingTime)));
+
+
+    if(millis() - finishDrinkingTime >= restartGameTimer) {
+      beerStatus = Waiting;
+    }
   } else {
     display.drawString(90, 16, "Failed");
   }
@@ -202,7 +222,7 @@ void loop() {
   display.clear();
   display.setFont(ArialMT_Plain_10);
   display.setTextAlignment(TEXT_ALIGN_RIGHT);
-  display.drawString(90, 50, String(scale.get_units()));
+  Serial.print(String(scale.get_units()));
   updateBeerStatus();
   display.display();
   delay(10);
